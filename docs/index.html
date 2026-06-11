@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rates vs. Prices — How central banks fight inflation</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="kicker">Interactive infographic · 35 economies · BIS / World Bank / Eurostat data</p>
+  <h1>Rates <span class="vs">vs.</span> Prices</h1>
+  <p class="subtitle">How the world's central banks used interest rates to fight the biggest
+  inflation shock in four decades — and why different kinds of economies fought it differently.</p>
+  <div class="chips" id="vintage-chips"></div>
+</header>
+
+<section class="prose" id="why">
+  <h2>Why interest rates?</h2>
+  <p>
+    When a central bank raises its policy rate, borrowing across the whole economy gets more
+    expensive: mortgages, business loans, credit cards. Demand cools, hiring slows, the currency
+    tends to strengthen — and with less money chasing goods, price growth eases. That chain of
+    events is the <em>monetary transmission mechanism</em>, and it is the reason a single
+    overnight interest rate is the main lever against inflation.
+  </p>
+  <div class="cards3">
+    <div class="card">
+      <h3>The real-rate rule</h3>
+      <p>What matters is the <em>real</em> rate — the policy rate minus inflation. To slow an
+      economy, a central bank must raise its rate by <em>more</em> than inflation rose (the
+      “Taylor principle”), otherwise the real cost of borrowing is still falling. In 2021–22,
+      with inflation near 10% and rates near zero, real rates were deeply negative almost
+      everywhere — fuel on the fire that had to be withdrawn.</p>
+    </div>
+    <div class="card">
+      <h3>The long lag</h3>
+      <p>Rate moves act with “long and variable lags” — typically 12–24 months to reach prices.
+      Central banks therefore respond to where they think inflation is <em>going</em>, not where
+      it is. In the charts below you can see the lag in both directions: hikes trail the
+      inflation take-off, and disinflation trails the hikes.</p>
+    </div>
+    <div class="card">
+      <h3>Credibility &amp; anchoring</h3>
+      <p>Most central banks target ~2% (advanced) or 2–4% (emerging) inflation. If people believe
+      the target, expectations stay “anchored” and inflation falls at a lower cost. Emerging
+      markets, with a shorter credibility track record and fragile currencies, must usually hike
+      sooner and higher for the same result — one of the clearest systemic differences in the data.</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="hero-chart-section">
+  <h2>The Great Tightening, by type of economy</h2>
+  <p class="lede">Median policy rate of each country group since 2019. Emerging-market inflation
+  targeters moved first (Brazil hiked in March 2021 — a year before the Fed), advanced economies
+  followed harder than any cycle since the 1980s, pegged regimes simply imported the Fed's policy,
+  and the high-inflation outliers played by their own rules.</p>
+  <div id="hero-chart" class="chart-host"></div>
+  <div id="hero-legend" class="legend"></div>
+</section>
+
+<section class="panel" id="explorer">
+  <h2>Explore: one bank at a time</h2>
+  <p class="lede">Pick an economy. The colored step line is the central bank's policy rate; the
+  light line is year-on-year consumer-price inflation (dashes mark annual-resolution data).
+  The shaded band is the bank's inflation target.</p>
+
+  <div id="country-picker"></div>
+
+  <div class="explorer-head">
+    <div id="country-title"></div>
+    <div class="range-buttons" id="range-buttons"></div>
+  </div>
+
+  <div id="explorer-chart" class="chart-host tall"></div>
+  <div id="explorer-note" class="footnote"></div>
+  <div id="stat-cards" class="stat-cards"></div>
+  <div id="country-story" class="story"></div>
+</section>
+
+<section class="panel" id="scatter-section">
+  <h2>The reaction map: how far did each bank go?</h2>
+  <p class="lede">Each bubble is one central bank in the 2020–25 cycle. Across: the worst
+  inflation it faced (log scale). Up: how much it raised its policy rate from the pandemic
+  trough (log scale). The further up-right, the bigger the firefight. Hover any bubble.</p>
+  <div id="scatter-chart" class="chart-host tall"></div>
+  <div id="scatter-legend" class="legend"></div>
+</section>
+
+<section class="panel" id="lag-section">
+  <h2>Chasing inflation: the reaction lag</h2>
+  <p class="lede">For each economy, the bar shows the inflation lead (in months) that best
+  correlates with the policy rate over 2010–22 — a rough measure of how long after prices move
+  the policy rate follows. Stronger color = tighter correlation. Pegged regimes track the Fed,
+  not domestic prices, and it shows.</p>
+  <div id="lag-chart" class="chart-host"></div>
+</section>
+
+<section class="panel" id="groups-section">
+  <h2>Five monetary worlds</h2>
+  <p class="lede">Grouping economies by the nature of their monetary regime exposes the systemic
+  differences. The dumbbells show each group's median inflation at its 2021–23 peak (hollow) and
+  in 2024 (solid) — the distance is the disinflation achieved.</p>
+  <div id="group-cards"></div>
+</section>
+
+<section class="prose" id="method">
+  <h2>Data &amp; method</h2>
+  <ul class="method-list">
+    <li><strong>Policy rates</strong> — BIS “Central bank policy rates” (WS_CBPOL), monthly,
+      end of period, through <span class="data-end" data-k="rateEnd"></span>. The BIS series is the
+      reference cross-country source: it tracks each bank's headline instrument (fed funds target,
+      ECB key rate, Selic, repo rate, 1-year LPR, …).</li>
+    <li><strong>Inflation</strong> — headline consumer prices, year on year. Monthly figures
+      1980–2022 from the World Bank <em>Global Database of Inflation</em> (Ha, Kose &amp; Ohnsorge);
+      2023–24 at annual resolution from the BIS long consumer-price series (drawn dashed);
+      euro-area monthly HICP through 2025-04 from Eurostat. Australia reports CPI quarterly.</li>
+    <li><strong>Latest-rate annotations</strong> for the Fed, ECB, Bank of England, Bank of Japan
+      and SNB come from the BIS bulk download of 2026-05-06.</li>
+    <li><strong>Groups</strong> follow the monetary regime, not geography: advanced majors,
+      small open advanced economies, emerging-market inflation targeters, high-inflation
+      outliers, and pegged/managed regimes.</li>
+    <li><strong>Caveats</strong> — policy-rate definitions change over time within countries
+      (footnotes in the BIS source); lag correlations are descriptive, not causal; annual
+      inflation points are yearly averages and smooth over intra-year swings. All raw source
+      files and the build script are in the repository for reproduction.</li>
+  </ul>
+  <p class="footnote">Built 2026-06-11. Sources: Bank for International Settlements (data.bis.org);
+  World Bank Global Database of Inflation; Eurostat (prc_hicp_manr). Mirrored snapshots are
+  committed under <code>data/raw/</code>; see <code>scripts/build_data.py</code>.</p>
+</section>
+
+<div id="tooltip" class="tooltip" hidden></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

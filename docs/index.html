@@ -56,16 +56,23 @@
   <p class="lede">Median policy rate of each country group since 2019. Emerging-market inflation
   targeters moved first (Brazil hiked in March 2021 — a year before the Fed), advanced economies
   followed harder than any cycle since the 1980s, pegged regimes simply imported the Fed's policy,
-  and the high-inflation outliers played by their own rules.</p>
+  and the high-inflation outliers played by their own rules. <strong>Click a group in the legend
+  to hide or show it</strong> — hide the outliers and the chart rescales to the rest.</p>
   <div id="hero-chart" class="chart-host"></div>
   <div id="hero-legend" class="legend"></div>
 </section>
 
 <section class="panel" id="explorer">
-  <h2>Explore: one bank at a time</h2>
-  <p class="lede">Pick an economy. The colored step line is the central bank's policy rate; the
-  light line is year-on-year consumer-price inflation (dashes mark annual-resolution data).
-  The shaded band is the bank's inflation target.</p>
+  <h2>Explore the banks</h2>
+  <p class="lede"><strong>Single economy</strong> shows one central bank's policy rate against its
+  inflation, with the bank's target band shaded. <strong>Compare</strong> overlays up to eight
+  economies on one chart — click country chips to add or remove them, and switch the metric
+  between policy rates and inflation.</p>
+
+  <div class="explorer-toolbar">
+    <div class="range-buttons" id="mode-buttons"></div>
+    <div class="range-buttons" id="metric-buttons" style="display:none"></div>
+  </div>
 
   <div id="country-picker"></div>
 
@@ -84,7 +91,8 @@
   <h2>The reaction map: how far did each bank go?</h2>
   <p class="lede">Each bubble is one central bank in the 2020–25 cycle. Across: the worst
   inflation it faced (log scale). Up: how much it raised its policy rate from the pandemic
-  trough (log scale). The further up-right, the bigger the firefight. Hover any bubble.</p>
+  trough (log scale). The further up-right, the bigger the firefight. Hover any bubble; click it
+  to open that economy in the explorer; click legend groups to filter.</p>
   <div id="scatter-chart" class="chart-host tall"></div>
   <div id="scatter-legend" class="legend"></div>
 </section>
@@ -95,6 +103,7 @@
   correlates with the policy rate over 2010–22 — a rough measure of how long after prices move
   the policy rate follows. Stronger color = tighter correlation. Pegged regimes track the Fed,
   not domestic prices, and it shows.</p>
+  <div id="lag-legend" class="legend" style="margin-bottom:10px"></div>
   <div id="lag-chart" class="chart-host"></div>
 </section>
 

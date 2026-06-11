@@ -65,6 +65,19 @@ See `data/raw/SOURCES.md` for file-level provenance and retrieval notes.
   (dashed, diamond markers) — annual averages smooth over intra-year swings.
 - Lag correlations are descriptive statistics, not causal estimates.
 
+## Deploying as a GitHub Pages site
+
+The site is fully static (`docs/` is the complete site root), so it deploys
+with one setting and no build step:
+
+1. On GitHub: **Settings → Pages**
+2. Under *Build and deployment*, set **Source: Deploy from a branch**
+3. Pick **Branch: `master`**, **Folder: `/docs`**, and save
+
+GitHub publishes it at `https://g-thor.github.io/interest_rate_explorer/`
+within a minute or two, and republishes automatically on every push to
+`master` that touches `docs/`.
+
 ## Repo layout
 
 ```

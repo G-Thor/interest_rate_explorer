@@ -131,7 +131,7 @@ function buildToggleLegend(host, hiddenSet, onChange, extraNote) {
 })();
 
 /* --------------------------------------------------------------- hero chart */
-const heroHidden = new Set();
+const heroHidden = new Set(["high_inflation"]);
 function renderHero() {
   const host = document.getElementById("hero-chart");
   host.innerHTML = "";
@@ -142,13 +142,13 @@ function renderHero() {
   const t0 = ymToNum(D.heroMonths[0]);
   const t1 = ymToNum(D.heroMonths[D.heroMonths.length - 1]);
 
-  let maxVisible = 0, maxAt = null;
+  let maxVisible = 0;
   for (const gid of visible) {
-    D.heroMedians[gid].forEach((v, i) => {
-      if (v !== null && v > maxVisible) { maxVisible = v; maxAt = ymToNum(D.heroMonths[i]); }
+    D.heroMedians[gid].forEach(v => {
+      if (v !== null && v > maxVisible) maxVisible = v;
     });
   }
-  const YMAX = Math.min(20, Math.ceil(maxVisible * 1.12));
+  const YMAX = Math.max(2, Math.ceil(maxVisible * 1.1));
   const x = lin([t0, t1], [M.l, W - M.r]);
   const y = lin([0, YMAX], [H - M.b, M.t]);
 
@@ -174,12 +174,6 @@ function renderHero() {
       "stroke-dasharray": gid === "high_inflation" ? "5 4" : "none",
       "stroke-linejoin": "round",
     }, g);
-  }
-  if (maxVisible > YMAX) {
-    el("text", {
-      x: x(maxAt), y: M.t + 14, "text-anchor": "middle",
-      fill: GROUP_COLOR.high_inflation, "font-size": 12,
-    }, svg).textContent = `↑ high-inflation outliers peak at ${maxVisible.toFixed(1)}% (median)`;
   }
 
   const hover = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
@@ -633,16 +627,33 @@ function renderScatter() {
     if (scatterHidden.has(c.group)) continue;
     const s = c.stats;
     if (s.peakCPI === null || s.peakCPI === undefined || s.hikePP === null) continue;
-    pts.push({ iso, c, x: Math.max(s.peakCPI, 1), y: Math.max(s.hikePP, 0.15), zero: s.hikePP < 0.15 });
+    pts.push({ iso, c, x: Math.max(s.peakCPI, 1), y: s.hikePP, zero: s.hikePP < 0.15 });
   }
-  const x = logScale([1, 400], [M.l, W - M.r]);
-  const y = logScale([0.12, 120], [H - M.b, M.t]);
 
-  for (const v of [1, 2, 5, 10, 20, 50, 100, 200, 400]) {
+  // log domains fitted to the visible points, snapped to "nice" tick values
+  const X_CAND = [1, 2, 5, 10, 20, 50, 100, 200, 400, 1000];
+  const Y_CAND = [0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 200];
+  const snap = (cand, lo, hi) => {
+    let i0 = 0, i1 = cand.length - 1;
+    for (let i = 0; i < cand.length; i++) if (cand[i] <= lo) i0 = i;
+    for (let i = cand.length - 1; i >= 0; i--) if (cand[i] >= hi) i1 = i;
+    return [cand[i0], cand[Math.max(i1, i0 + 1)]];
+  };
+  const xs = pts.map(p => p.x);
+  const ysNonZero = pts.filter(p => !p.zero).map(p => p.y);
+  const [xlo, xhi] = snap(X_CAND, Math.min(...xs, 400), Math.max(...xs, 2));
+  const [ylo, yhi] = snap(Y_CAND, ysNonZero.length ? Math.min(...ysNonZero) : 0.25, ysNonZero.length ? Math.max(...ysNonZero) : 10);
+  // points with ~no tightening sit on the floor of the axis
+  for (const p of pts) p.y = p.zero ? ylo : Math.max(p.y, ylo);
+
+  const x = logScale([xlo, xhi], [M.l, W - M.r]);
+  const y = logScale([ylo, yhi], [H - M.b, M.t]);
+
+  for (const v of X_CAND.filter(v => v >= xlo && v <= xhi)) {
     el("line", { x1: x(v), x2: x(v), y1: M.t, y2: H - M.b, class: "grid-line" }, svg);
     el("text", { x: x(v), y: H - M.b + 16, "text-anchor": "middle", class: "axis-label" }, svg).textContent = v + "%";
   }
-  for (const v of [0.25, 0.5, 1, 2, 5, 10, 25, 50, 100]) {
+  for (const v of Y_CAND.filter(v => v >= ylo && v <= yhi)) {
     el("line", { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), class: "grid-line" }, svg);
     el("text", { x: M.l - 8, y: y(v) + 4, "text-anchor": "end", class: "axis-label" }, svg).textContent = v;
   }

@@ -11,6 +11,8 @@ const GROUP_COLOR = {
   pegged: "#b48cff",
 };
 const CPI_COLOR = "#d7dee8";
+const COMPARE_PALETTE = ["#4da3ff", "#ff5d73", "#3ed6c0", "#ffb43a", "#b48cff",
+  "#7ee081", "#ff8fd2", "#6ad4ff", "#e0c06a", "#9aa6ff"];
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /* ---------------------------------------------------------- month helpers */
@@ -88,6 +90,30 @@ function showTip(html, ev) {
 }
 function hideTip() { tooltip.hidden = true; }
 
+/* --------------------------------------------------- toggleable legends */
+function buildToggleLegend(host, hiddenSet, onChange, extraNote) {
+  host.innerHTML = "";
+  for (const gid of D.groupOrder) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "key toggle" + (hiddenSet.has(gid) ? " off" : "");
+    b.innerHTML = `<span class="swatch" style="background:${GROUP_COLOR[gid]}"></span>${D.groups[gid].name}`;
+    b.title = "Click to show/hide this group";
+    b.addEventListener("click", () => {
+      if (hiddenSet.has(gid)) hiddenSet.delete(gid); else hiddenSet.add(gid);
+      // never allow hiding everything
+      if (hiddenSet.size === D.groupOrder.length) hiddenSet.delete(gid);
+      buildToggleLegend(host, hiddenSet, onChange, extraNote);
+      onChange();
+    });
+    host.appendChild(b);
+  }
+  const hint = document.createElement("span");
+  hint.className = "key hint";
+  hint.textContent = extraNote ? extraNote : "click a group to hide / show it";
+  host.appendChild(hint);
+}
+
 /* ----------------------------------------------------------- vintage chips */
 (function vintage() {
   const host = document.getElementById("vintage-chips");
@@ -105,14 +131,24 @@ function hideTip() { tooltip.hidden = true; }
 })();
 
 /* --------------------------------------------------------------- hero chart */
-(function hero() {
+const heroHidden = new Set();
+function renderHero() {
   const host = document.getElementById("hero-chart");
+  host.innerHTML = "";
   const W = 960, H = 360, M = { l: 44, r: 16, t: 14, b: 26 };
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}` }, host);
 
+  const visible = D.groupOrder.filter(g => !heroHidden.has(g));
   const t0 = ymToNum(D.heroMonths[0]);
   const t1 = ymToNum(D.heroMonths[D.heroMonths.length - 1]);
-  const YMAX = 20;
+
+  let maxVisible = 0, maxAt = null;
+  for (const gid of visible) {
+    D.heroMedians[gid].forEach((v, i) => {
+      if (v !== null && v > maxVisible) { maxVisible = v; maxAt = ymToNum(D.heroMonths[i]); }
+    });
+  }
+  const YMAX = Math.min(20, Math.ceil(maxVisible * 1.12));
   const x = lin([t0, t1], [M.l, W - M.r]);
   const y = lin([0, YMAX], [H - M.b, M.t]);
 
@@ -128,12 +164,10 @@ function hideTip() { tooltip.hidden = true; }
   el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b }, clip);
   const g = el("g", { "clip-path": "url(#heroclip)" }, svg);
 
-  let clippedMax = 0, clippedAt = null;
-  for (const gid of D.groupOrder) {
+  for (const gid of visible) {
     const pts = D.heroMedians[gid]
       .map((v, i) => [ymToNum(D.heroMonths[i]), v])
       .filter(p => p[1] !== null);
-    for (const p of pts) if (p[1] > clippedMax) { clippedMax = p[1]; clippedAt = p[0]; }
     el("path", {
       d: pathFrom(pts, x, y), fill: "none",
       stroke: GROUP_COLOR[gid], "stroke-width": gid === "high_inflation" ? 2 : 2.5,
@@ -141,14 +175,13 @@ function hideTip() { tooltip.hidden = true; }
       "stroke-linejoin": "round",
     }, g);
   }
-  if (clippedMax > YMAX) {
+  if (maxVisible > YMAX) {
     el("text", {
-      x: x(clippedAt), y: M.t + 14, "text-anchor": "middle",
+      x: x(maxAt), y: M.t + 14, "text-anchor": "middle",
       fill: GROUP_COLOR.high_inflation, "font-size": 12,
-    }, svg).textContent = `↑ high-inflation outliers peak at ${clippedMax.toFixed(1)}% (median)`;
+    }, svg).textContent = `↑ high-inflation outliers peak at ${maxVisible.toFixed(1)}% (median)`;
   }
 
-  // invisible hover overlay
   const hover = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
   const cursor = el("line", { y1: M.t, y2: H - M.b, stroke: "#5d6b7d", "stroke-width": 1, visibility: "hidden" }, svg);
   hover.addEventListener("mousemove", ev => {
@@ -161,22 +194,16 @@ function hideTip() { tooltip.hidden = true; }
     cursor.setAttribute("x2", x(ymToNum(p)));
     cursor.setAttribute("visibility", "visible");
     let html = `<div class="tt-title">${fmtMonth(p)} — median policy rate</div>`;
-    for (const gid of D.groupOrder) {
+    for (const gid of visible) {
       const v = D.heroMedians[gid][idx];
       if (v !== null) html += `<div class="tt-row"><span style="color:${GROUP_COLOR[gid]}">●</span> ${D.groups[gid].name}: <b>${v.toFixed(2)}%</b></div>`;
     }
     showTip(html, ev);
   });
   hover.addEventListener("mouseleave", () => { hideTip(); cursor.setAttribute("visibility", "hidden"); });
-
-  const legend = document.getElementById("hero-legend");
-  for (const gid of D.groupOrder) {
-    const k = document.createElement("span");
-    k.className = "key";
-    k.innerHTML = `<span class="swatch" style="background:${GROUP_COLOR[gid]}"></span>${D.groups[gid].name}`;
-    legend.appendChild(k);
-  }
-})();
+}
+buildToggleLegend(document.getElementById("hero-legend"), heroHidden, renderHero);
+renderHero();
 
 /* ------------------------------------------------------- country stories */
 const STORIES = {
@@ -224,8 +251,16 @@ const RANGES = [
   { label: "1995–25", start: 1995 },
   { label: "Max (1980–)", start: 1980 },
 ];
+let mode = "single";              // "single" | "compare"
 let currentIso = "US";
+let compareSet = ["US", "XM", "BR", "TR"]; // seed selection for compare mode
+let compareMetric = "rate";       // "rate" | "cpi"
 let currentRange = 0;
+const COMPARE_MAX = 8;
+
+function compareColor(iso) {
+  return COMPARE_PALETTE[compareSet.indexOf(iso) % COMPARE_PALETTE.length];
+}
 
 function inflationSegments(c, tMin, tMax) {
   /* Returns {monthly:[[t,v]], annualPre:[[t,v]], annualPost:[[t,v]]} clipped to window. */
@@ -250,15 +285,53 @@ function inflationSegments(c, tMin, tMax) {
   return { monthly, annualPre, annualPost };
 }
 
-function drawExplorer() {
+function chartFrame(host, W, H, M, tMin, tMax, lo, hi) {
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}` }, host);
+  const x = lin([tMin, tMax], [M.l, W - M.r]);
+  const y = lin([lo, hi], [H - M.b, M.t]);
+  for (const v of niceTicks(lo, hi, 6)) {
+    el("line", { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), class: "grid-line", "stroke-dasharray": v === 0 ? "none" : "2 4", stroke: v === 0 ? "#3a4a60" : undefined }, svg);
+    el("text", { x: M.l - 8, y: y(v) + 4, "text-anchor": "end", class: "axis-label" }, svg).textContent = v + "%";
+  }
+  const span = tMax - tMin;
+  const yearStep = span > 30 ? 10 : span > 16 ? 5 : span > 8 ? 2 : 1;
+  for (let yr = Math.ceil(tMin / yearStep) * yearStep; yr <= tMax; yr += yearStep) {
+    el("line", { x1: x(yr), x2: x(yr), y1: H - M.b, y2: H - M.b + 4, stroke: "#5d6b7d" }, svg);
+    el("text", { x: x(yr), y: H - 8, "text-anchor": "middle", class: "axis-label" }, svg).textContent = yr;
+  }
+  return { svg, x, y };
+}
+
+function attachCrosshair(svg, W, H, M, x, tMin, tMax, htmlForMonth) {
+  const cursor = el("line", { y1: M.t, y2: H - M.b, stroke: "#5d6b7d", visibility: "hidden" }, svg);
+  const hover = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
+  hover.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const t = x.invert((ev.clientX - box.left) * (W / box.width));
+    const p = numToYm(Math.min(Math.max(t, tMin), tMax - 1 / 12));
+    cursor.setAttribute("x1", x(ymToNum(p)));
+    cursor.setAttribute("x2", x(ymToNum(p)));
+    cursor.setAttribute("visibility", "visible");
+    showTip(htmlForMonth(p), ev);
+  });
+  hover.addEventListener("mouseleave", () => { hideTip(); cursor.setAttribute("visibility", "hidden"); });
+}
+
+function ratStepPath(ratePts, x, y) {
+  let d = `M${x(ratePts[0][0]).toFixed(1)},${y(ratePts[0][1]).toFixed(1)}`;
+  for (let i = 1; i < ratePts.length; i++) {
+    d += `H${x(ratePts[i][0]).toFixed(1)}V${y(ratePts[i][1]).toFixed(1)}`;
+  }
+  return d;
+}
+
+function drawSingle() {
   const c = D.countries[currentIso];
   const color = GROUP_COLOR[c.group];
   const host = document.getElementById("explorer-chart");
   host.innerHTML = "";
 
   const W = 960, H = 430, M = { l: 50, r: 16, t: 16, b: 28 };
-  const svg = el("svg", { viewBox: `0 0 ${W} ${H}` }, host);
-
   const tMin = RANGES[currentRange].start;
   const tMax = ymToNum(D.meta.rateEnd) + 1 / 12;
 
@@ -274,10 +347,9 @@ function drawExplorer() {
   const padV = (hi - lo) * 0.06;
   lo = Math.min(0, lo - padV); hi += padV;
 
-  const x = lin([tMin, tMax], [M.l, W - M.r]);
-  const y = lin([lo, hi], [H - M.b, M.t]);
+  const { svg, x, y } = chartFrame(host, W, H, M, tMin, tMax, lo, hi);
 
-  // target band
+  // target band (drawn beneath series, above grid)
   if (c.band) {
     const [b0, b1] = c.band;
     const yTop = y(Math.min(b1 + (b0 === b1 ? 0.25 : 0), hi));
@@ -285,18 +357,6 @@ function drawExplorer() {
     el("rect", { x: M.l, y: yTop, width: W - M.l - M.r, height: Math.max(yBot - yTop, 0), fill: "#58d68d18" }, svg);
     el("text", { x: W - M.r - 4, y: yTop - 4, "text-anchor": "end", fill: "#58d68d99", "font-size": 10.5 }, svg)
       .textContent = `target ${c.target}`;
-  }
-
-  // grid + axes
-  for (const v of niceTicks(lo, hi, 6)) {
-    el("line", { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), class: "grid-line", "stroke-dasharray": v === 0 ? "none" : "2 4", stroke: v === 0 ? "#3a4a60" : undefined }, svg);
-    el("text", { x: M.l - 8, y: y(v) + 4, "text-anchor": "end", class: "axis-label" }, svg).textContent = v + "%";
-  }
-  const span = tMax - tMin;
-  const yearStep = span > 30 ? 10 : span > 16 ? 5 : span > 8 ? 2 : 1;
-  for (let yr = Math.ceil(tMin / yearStep) * yearStep; yr <= tMax; yr += yearStep) {
-    el("line", { x1: x(yr), x2: x(yr), y1: H - M.b, y2: H - M.b + 4, stroke: "#5d6b7d" }, svg);
-    el("text", { x: x(yr), y: H - 8, "text-anchor": "middle", class: "axis-label" }, svg).textContent = yr;
   }
 
   // inflation: monthly solid + annual dashed with diamonds
@@ -313,11 +373,7 @@ function drawExplorer() {
 
   // policy rate as step line
   if (ratePts.length) {
-    let d = `M${x(ratePts[0][0]).toFixed(1)},${y(ratePts[0][1]).toFixed(1)}`;
-    for (let i = 1; i < ratePts.length; i++) {
-      d += `H${x(ratePts[i][0]).toFixed(1)}V${y(ratePts[i][1]).toFixed(1)}`;
-    }
-    el("path", { d, fill: "none", stroke: color, "stroke-width": 2.4, "stroke-linejoin": "round" }, svg);
+    el("path", { d: ratStepPath(ratePts, x, y), fill: "none", stroke: color, "stroke-width": 2.4, "stroke-linejoin": "round" }, svg);
   }
 
   // series legend (inline, top-left)
@@ -327,18 +383,9 @@ function drawExplorer() {
   el("line", { x1: M.l + 130, x2: M.l + 154, y1: M.t + 8, y2: M.t + 8, stroke: CPI_COLOR, "stroke-width": 1.7 }, lg);
   el("text", { x: M.l + 160, y: M.t + 12, fill: "#93a1b3", "font-size": 12 }, lg).textContent = "Inflation (YoY)";
 
-  // hover crosshair
   const monthlyByT = new Map(inf.monthly.map(p => [numToYm(p[0]), p[1]]));
   const rateByT = new Map(ratePts.map(p => [numToYm(p[0]), p[1]]));
-  const cursor = el("line", { y1: M.t, y2: H - M.b, stroke: "#5d6b7d", visibility: "hidden" }, svg);
-  const hover = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
-  hover.addEventListener("mousemove", ev => {
-    const box = svg.getBoundingClientRect();
-    const t = x.invert((ev.clientX - box.left) * (W / box.width));
-    const p = numToYm(Math.min(Math.max(t, tMin), tMax - 1 / 12));
-    cursor.setAttribute("x1", x(ymToNum(p)));
-    cursor.setAttribute("x2", x(ymToNum(p)));
-    cursor.setAttribute("visibility", "visible");
+  attachCrosshair(svg, W, H, M, x, tMin, tMax, p => {
     const r = rateByT.get(p);
     const i = monthlyByT.get(p);
     const yr = p.slice(0, 4);
@@ -347,9 +394,8 @@ function drawExplorer() {
     html += `<div class="tt-row">Policy rate: <b>${r !== undefined ? r.toFixed(2) + "%" : "–"}</b></div>`;
     if (i !== undefined) html += `<div class="tt-row">Inflation: <b>${i.toFixed(1)}%</b> y/y</div>`;
     else if (a !== undefined && a !== null) html += `<div class="tt-row">Inflation ${yr} (annual avg): <b>${a.toFixed(1)}%</b></div>`;
-    showTip(html, ev);
+    return html;
   });
-  hover.addEventListener("mouseleave", () => { hideTip(); cursor.setAttribute("visibility", "hidden"); });
 
   // header, note, stats, story
   document.getElementById("country-title").innerHTML =
@@ -377,6 +423,7 @@ function drawExplorer() {
     `<div class="stat"><div class="v">${v}</div><div class="k">${k}</div><div class="d">${d}</div></div>`).join("");
 
   const storyHost = document.getElementById("country-story");
+  storyHost.style.display = "";
   let story = STORIES[currentIso] || "";
   story = story.replace(/\{(\w+)\}/g, (_, k) => {
     const v = s[k];
@@ -384,6 +431,95 @@ function drawExplorer() {
   });
   storyHost.style.borderLeftColor = color;
   storyHost.innerHTML = story || `<strong>${c.bank}</strong>: ${D.groups[c.group].desc}`;
+}
+
+function drawCompare() {
+  const host = document.getElementById("explorer-chart");
+  host.innerHTML = "";
+
+  const W = 960, H = 430, M = { l: 50, r: 16, t: 16, b: 28 };
+  const tMin = RANGES[currentRange].start;
+  const tMax = ymToNum(D.meta.rateEnd) + 1 / 12;
+
+  const entries = compareSet.map(iso => {
+    const c = D.countries[iso];
+    if (compareMetric === "rate") {
+      return { iso, c, pts: seriesPoints(c.rate).filter(p => p[0] >= tMin && p[0] <= tMax), inf: null };
+    }
+    return { iso, c, pts: null, inf: inflationSegments(c, tMin, tMax) };
+  });
+
+  const allVals = [];
+  for (const e of entries) {
+    if (e.pts) allVals.push(...e.pts.map(p => p[1]));
+    if (e.inf) allVals.push(...e.inf.monthly.map(p => p[1]), ...e.inf.annualPre.map(p => p[1]), ...e.inf.annualPost.map(p => p[1]));
+  }
+  if (!allVals.length) {
+    host.innerHTML = `<p class="footnote" style="padding:60px 0;text-align:center">Select economies below to compare them.</p>`;
+  }
+  let lo = Math.min(0, ...allVals), hi = Math.max(4, ...allVals);
+  const padV = (hi - lo) * 0.06;
+  lo = Math.min(0, lo - padV); hi += padV;
+
+  const { svg, x, y } = chartFrame(host, W, H, M, tMin, tMax, lo, hi);
+
+  for (const e of entries) {
+    const col = compareColor(e.iso);
+    if (e.pts && e.pts.length) {
+      el("path", { d: ratStepPath(e.pts, x, y), fill: "none", stroke: col, "stroke-width": 2.2, "stroke-linejoin": "round" }, svg);
+    }
+    if (e.inf) {
+      if (e.inf.annualPre.length > 1) el("path", { d: pathFrom(e.inf.annualPre, x, y), fill: "none", stroke: col, "stroke-width": 1.6, "stroke-dasharray": "3 5", opacity: 0.75 }, svg);
+      if (e.inf.annualPost.length > 1) el("path", { d: pathFrom(e.inf.annualPost, x, y), fill: "none", stroke: col, "stroke-width": 1.6, "stroke-dasharray": "3 5", opacity: 0.75 }, svg);
+      if (e.inf.monthly.length > 1) el("path", { d: pathFrom(e.inf.monthly, x, y), fill: "none", stroke: col, "stroke-width": 1.9, "stroke-linejoin": "round" }, svg);
+    }
+    // end-of-line label at last point
+    const last = e.pts && e.pts.length ? e.pts[e.pts.length - 1]
+      : e.inf ? (e.inf.annualPost.length ? e.inf.annualPost[e.inf.annualPost.length - 1]
+        : e.inf.monthly.length ? e.inf.monthly[e.inf.monthly.length - 1] : null) : null;
+    if (last) {
+      el("text", { x: Math.min(x(last[0]) + 5, W - 4), y: y(last[1]) + 4, fill: col, "font-size": 11, "font-weight": 600 }, svg).textContent = e.iso;
+    }
+  }
+
+  // per-country lookups for tooltip
+  const lookups = entries.map(e => {
+    if (e.pts) return { e, map: new Map(e.pts.map(p => [numToYm(p[0]), p[1]])) };
+    return { e, map: new Map(e.inf.monthly.map(p => [numToYm(p[0]), p[1]])) };
+  });
+  attachCrosshair(svg, W, H, M, x, tMin, tMax, p => {
+    const yr = p.slice(0, 4);
+    let html = `<div class="tt-title">${fmtMonth(p)} — ${compareMetric === "rate" ? "policy rate" : "inflation (YoY)"}</div>`;
+    const rows = [];
+    for (const { e, map } of lookups) {
+      let v = map.get(p);
+      let suffix = "";
+      if (v === undefined && compareMetric === "cpi") {
+        const a = e.c.cpiA[yr];
+        if (a !== undefined && a !== null) { v = a; suffix = " (annual avg)"; }
+      }
+      if (v !== undefined) rows.push([v, `<div class="tt-row"><span style="color:${compareColor(e.iso)}">●</span> ${e.c.name}: <b>${v.toFixed(2)}%</b>${suffix}</div>`]);
+    }
+    rows.sort((a, b) => b[0] - a[0]);
+    return html + rows.map(r => r[1]).join("");
+  });
+
+  document.getElementById("country-title").innerHTML =
+    `<h3>Comparing ${compareSet.length} ${compareSet.length === 1 ? "economy" : "economies"}</h3>
+     <div class="sub">${compareMetric === "rate" ? "Central-bank policy rates" : "Consumer-price inflation, year on year (dashed = annual averages)"} · click flags below to add or remove (max ${COMPARE_MAX})</div>`;
+  document.getElementById("explorer-note").textContent =
+    compareMetric === "cpi"
+      ? "Solid lines are monthly data; dashed segments are annual averages (2023–24 and pre-monthly history). Euro-area monthly data starts 2020."
+      : "Monthly end-of-period policy rates (BIS). Lines start when a series begins (e.g. the ECB in 1999).";
+  document.getElementById("stat-cards").innerHTML = "";
+  const storyHost = document.getElementById("country-story");
+  storyHost.style.display = "none";
+}
+
+function drawExplorer() {
+  if (mode === "single") drawSingle(); else drawCompare();
+  refreshPicker();
+  document.getElementById("metric-buttons").style.display = mode === "compare" ? "" : "none";
 }
 
 (function buildPicker() {
@@ -401,12 +537,57 @@ function drawExplorer() {
       b.className = "cbtn";
       b.dataset.iso = iso;
       b.textContent = c.name;
-      b.addEventListener("click", () => { currentIso = iso; refreshPicker(); drawExplorer(); });
+      b.addEventListener("click", () => {
+        if (mode === "single") {
+          currentIso = iso;
+        } else {
+          const i = compareSet.indexOf(iso);
+          if (i >= 0) compareSet.splice(i, 1);
+          else if (compareSet.length < COMPARE_MAX) compareSet.push(iso);
+        }
+        drawExplorer();
+      });
       chips.appendChild(b);
     }
     div.appendChild(chips);
     host.appendChild(div);
   }
+
+  // mode buttons
+  const mb = document.getElementById("mode-buttons");
+  [["single", "Single economy"], ["compare", "Compare"]].forEach(([m, label]) => {
+    const b = document.createElement("button");
+    b.className = "rbtn" + (m === mode ? " active" : "");
+    b.dataset.mode = m;
+    b.textContent = label;
+    b.addEventListener("click", () => {
+      mode = m;
+      if (mode === "compare" && !compareSet.includes(currentIso)) {
+        if (compareSet.length >= COMPARE_MAX) compareSet.pop();
+        compareSet.unshift(currentIso);
+      }
+      mb.querySelectorAll(".rbtn").forEach(n => n.classList.toggle("active", n.dataset.mode === mode));
+      drawExplorer();
+    });
+    mb.appendChild(b);
+  });
+
+  // metric buttons (compare mode only)
+  const xb = document.getElementById("metric-buttons");
+  [["rate", "Policy rate"], ["cpi", "Inflation"]].forEach(([m, label]) => {
+    const b = document.createElement("button");
+    b.className = "rbtn" + (m === compareMetric ? " active" : "");
+    b.dataset.metric = m;
+    b.textContent = label;
+    b.addEventListener("click", () => {
+      compareMetric = m;
+      xb.querySelectorAll(".rbtn").forEach(n => n.classList.toggle("active", n.dataset.metric === m));
+      drawExplorer();
+    });
+    xb.appendChild(b);
+  });
+
+  // range buttons
   const rb = document.getElementById("range-buttons");
   RANGES.forEach((r, i) => {
     const b = document.createElement("button");
@@ -419,27 +600,37 @@ function drawExplorer() {
     });
     rb.appendChild(b);
   });
-  refreshPicker();
 })();
 
 function refreshPicker() {
   document.querySelectorAll(".cbtn").forEach(b => {
-    const active = b.dataset.iso === currentIso;
+    const iso = b.dataset.iso;
+    let active, color;
+    if (mode === "single") {
+      active = iso === currentIso;
+      color = GROUP_COLOR[D.countries[iso].group];
+    } else {
+      active = compareSet.includes(iso);
+      color = active ? compareColor(iso) : "";
+    }
     b.classList.toggle("active", active);
-    b.style.background = active ? GROUP_COLOR[D.countries[b.dataset.iso].group] : "";
+    b.style.background = active ? color : "";
   });
 }
 drawExplorer();
 
 /* --------------------------------------------------------------- scatter */
-(function scatter() {
+const scatterHidden = new Set();
+function renderScatter() {
   const host = document.getElementById("scatter-chart");
+  host.innerHTML = "";
   const W = 960, H = 480, M = { l: 56, r: 24, t: 18, b: 44 };
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}` }, host);
 
   const pts = [];
   for (const iso of D.countryOrder) {
     const c = D.countries[iso];
+    if (scatterHidden.has(c.group)) continue;
     const s = c.stats;
     if (s.peakCPI === null || s.peakCPI === undefined || s.hikePP === null) continue;
     pts.push({ iso, c, x: Math.max(s.peakCPI, 1), y: Math.max(s.hikePP, 0.15), zero: s.hikePP < 0.15 });
@@ -472,31 +663,32 @@ drawExplorer();
         `<div class="tt-title">${p.c.name}</div>
          <div class="tt-row">Peak inflation: <b>${s.peakCPI.toFixed(1)}%</b> (${s.peakCPIP.length === 4 ? s.peakCPIP : fmtMonth(s.peakCPIP)})</div>
          <div class="tt-row">Tightening: <b>${p.zero ? "≈0" : "+" + s.hikePP.toFixed(2)}pp</b> (${s.trough}% → ${s.peak}%)</div>
-         <div class="tt-row">Peak rate: <b>${s.peak}%</b> ${s.peakP ? "in " + fmtMonth(s.peakP) : ""}</div>`, ev);
+         <div class="tt-row">Peak rate: <b>${s.peak}%</b> ${s.peakP ? "in " + fmtMonth(s.peakP) : ""}</div>
+         <div class="tt-row">Click to open in the explorer above.</div>`, ev);
     });
     dot.addEventListener("mouseleave", hideTip);
+    dot.addEventListener("click", () => {
+      mode = "single";
+      currentIso = p.iso;
+      document.querySelectorAll("#mode-buttons .rbtn").forEach(n => n.classList.toggle("active", n.dataset.mode === "single"));
+      drawExplorer();
+      document.getElementById("explorer").scrollIntoView({ behavior: "smooth" });
+      hideTip();
+    });
   }
-
-  const legend = document.getElementById("scatter-legend");
-  for (const gid of D.groupOrder) {
-    const k = document.createElement("span");
-    k.className = "key";
-    k.innerHTML = `<span class="swatch" style="background:${GROUP_COLOR[gid]};height:10px;width:10px;border-radius:50%"></span>${D.groups[gid].name}`;
-    legend.appendChild(k);
-  }
-  const note = document.createElement("span");
-  note.className = "key";
-  note.style.color = "#5d6b7d";
-  note.textContent = "bubble size = peak policy rate · China sits at the floor: it cut, not hiked";
-  legend.appendChild(note);
-})();
+}
+buildToggleLegend(document.getElementById("scatter-legend"), scatterHidden, renderScatter,
+  "bubble size = peak policy rate · click a bubble to open it in the explorer");
+renderScatter();
 
 /* -------------------------------------------------------------- lag bars */
-(function lagBars() {
+const lagHidden = new Set();
+function renderLag() {
   const host = document.getElementById("lag-chart");
+  host.innerHTML = "";
   const rows = D.countryOrder
     .map(iso => ({ iso, c: D.countries[iso], l: D.countries[iso].lagCorr }))
-    .filter(r => r.l)
+    .filter(r => r.l && !lagHidden.has(r.c.group))
     .sort((a, b) => a.l.lag - b.l.lag || b.l.r - a.l.r);
 
   const W = 960, rowH = 21, M = { l: 120, r: 70, t: 8, b: 26 };
@@ -530,7 +722,9 @@ drawExplorer();
        <div class="tt-row">Policy rate correlates best with inflation <b>${r.l.lag} months earlier</b> (r = ${r.l.r}, monthly levels 2010–22).</div>`, ev));
     bar.addEventListener("mouseleave", hideTip);
   });
-})();
+}
+buildToggleLegend(document.getElementById("lag-legend"), lagHidden, renderLag);
+renderLag();
 
 /* ------------------------------------------------------------ group cards */
 (function groupCards() {
@@ -560,7 +754,6 @@ drawExplorer();
     card.className = "gcard";
     card.style.borderLeftColor = col;
 
-    // dumbbell: peak cpi -> 2024 cpi on a log-ish scale 0..max
     const dbW = 560, dbH = 34;
     const maxV = Math.max(medPeakCpi || 1, 12);
     const dx = lin([0, maxV * 1.15], [0, dbW]);
@@ -577,11 +770,30 @@ drawExplorer();
     card.innerHTML = `
       <h3 style="color:${col}">${D.groups[gid].name}</h3>
       <p class="gdesc">${D.groups[gid].desc}</p>
-      <div class="gmembers">${members.map(m => m.name).join(" · ")}</div>
+      <div class="gmembers"></div>
       ${dumbbell}
       <div class="gstats">Median tightening <b>${medHike !== null ? "+" + medHike.toFixed(1) + "pp" : "—"}</b>
         · median peak rate <b>${medPeakRate !== null ? medPeakRate.toFixed(2) + "%" : "—"}</b></div>
       <div class="gstats">${INSIGHT[gid]}</div>`;
+
+    // clickable member names -> open in explorer
+    const gm = card.querySelector(".gmembers");
+    members.forEach((m, i) => {
+      if (i) gm.appendChild(document.createTextNode(" · "));
+      const a = document.createElement("a");
+      a.href = "#explorer";
+      a.className = "member-link";
+      a.textContent = m.name;
+      a.addEventListener("click", ev => {
+        ev.preventDefault();
+        mode = "single";
+        currentIso = m.iso2;
+        document.querySelectorAll("#mode-buttons .rbtn").forEach(n => n.classList.toggle("active", n.dataset.mode === "single"));
+        drawExplorer();
+        document.getElementById("explorer").scrollIntoView({ behavior: "smooth" });
+      });
+      gm.appendChild(a);
+    });
     host.appendChild(card);
   }
 })();

@@ -90,9 +90,24 @@ h2 { font-size: 28px; letter-spacing: -.01em; margin: 0 0 10px; }
 .chart-host.tall { min-height: 380px; }
 .chart-host svg { display: block; width: 100%; height: auto; }
 
-.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 10px; font-size: 13px; color: var(--muted); }
 .legend .key { display: inline-flex; align-items: center; gap: 7px; }
 .legend .swatch { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+.legend button.key {
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid var(--grid);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.legend button.key:hover { color: var(--ink); border-color: var(--faint); }
+.legend button.key.off { opacity: .38; }
+.legend button.key.off .swatch { background: var(--faint) !important; }
+.legend .hint { color: var(--faint); font-size: 12px; align-self: center; }
 
 /* country picker */
 #country-picker { margin: 6px 0 18px; }
@@ -119,6 +134,7 @@ h2 { font-size: 28px; letter-spacing: -.01em; margin: 0 0 10px; }
 .cbtn:hover { color: var(--ink); border-color: var(--faint); }
 .cbtn.active { color: #0c1118; font-weight: 600; border-color: transparent; }
 
+.explorer-toolbar { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
 .explorer-head { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
 #country-title h3 { margin: 0; font-size: 24px; }
 #country-title .sub { color: var(--muted); font-size: 13px; }
@@ -170,6 +186,8 @@ h2 { font-size: 28px; letter-spacing: -.01em; margin: 0 0 10px; }
 .gcard h3 { margin: 0 0 4px; font-size: 17px; }
 .gcard .gdesc { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
 .gcard .gmembers { font-size: 12px; color: var(--faint); margin-bottom: 10px; }
+.member-link { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--faint); }
+.member-link:hover { color: var(--ink); }
 .gcard .gstats { font-size: 13px; color: var(--muted); margin-top: 8px; }
 .gcard .gstats b { color: var(--ink); }
 
